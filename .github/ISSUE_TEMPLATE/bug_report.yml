@@ -1,0 +1,61 @@
+name: Bug report
+description: Something doesn't work the way it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. If a hook blocked something it shouldn't have, please use the **"Hook blocked legitimate input"** template instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Install via `bash install.sh`
+        2. Run / ask your Mistral coding tool to do `<command>`
+        3. See output
+    validations:
+      required: true
+  - type: input
+    id: install-source
+    attributes:
+      label: How did you install the tool?
+      placeholder: e.g. install.sh on 2026-04-26, or git clone of commit abc123
+    validations:
+      required: true
+  - type: input
+    id: mistral-tool
+    attributes:
+      label: Which Mistral coding tool and version?
+      description: Name and version of the tool the hooks are wired into (e.g. Codestral CLI 0.5, Mistral Code 1.2, custom integration).
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS Apple Silicon
+        - macOS Intel
+        - Linux
+        - Windows (WSL)
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output / logs
+      description: Paste the full hook output. Use code blocks.
+      render: shell
