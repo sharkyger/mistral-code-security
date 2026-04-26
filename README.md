@@ -1,14 +1,23 @@
 # Mistral Code Security
 
-**Supply chain security for Mistral AI coding tools.** Every pip install, npm install, and brew install your AI coding assistant runs gets checked against 3 vulnerability databases before execution.
+Security-first wrapper for the package installs Mistral-powered AI coding tools run on your behalf. 
+Every `pip install`, `npm install`, and `brew install` your AI coding assistant suggests gets checked against 3 vulnerability databases before it touches your system, so you never blindly pull in a known CVE.
 
-> Your AI assistant installs packages on your machine. Nobody is checking what is in them. Until now.
+## Why
 
-## Why Mistral Users Should Care
+Mistral-powered coding tools can install packages for you, but they don't check whether those packages have known security issues. 
+Most of the time that's fine. 
+Sometimes it isn't.
 
-Mistral positions itself as the EU-first AI provider. If you chose Mistral for data sovereignty and compliance, your security posture should match. Every unvetted package install is a compliance risk.
+This adds a security gate at the hook level: 
+it intercepts every install your AI assistant tries to run, 
+queries three public vulnerability databases, 
+checks whether the *target version* is actually affected, 
+and only lets the install proceed if it comes back clean. 
+Packages with known vulnerabilities are blocked and listed separately.
 
-This project adds the safety net that is missing from every AI coding tool on the market.
+If you chose Mistral for EU data sovereignty, your install pipeline should match. 
+This closes that gap.
 
 ## What This Does
 
@@ -22,11 +31,14 @@ When your AI coding tool tries to install a package, this system:
 3. **Blocks** the install if vulnerabilities are found
 4. **Allows** it through if clean
 
-No API keys required. All three databases are free and public. Zero dependencies (Python stdlib only).
+No API keys required. 
+All three databases are free and public. 
+Zero dependencies (Python stdlib only).
 
 ## How This Compares
 
-Every other security tool for AI coding assistants scans what is already installed. This one blocks the bad package before it ever reaches your machine.
+Every other security tool for AI coding assistants scans what is already installed. 
+This one blocks the bad package before it ever reaches your machine.
 
 | Tool | What it does | Gap |
 |------|-------------|-----|
@@ -35,7 +47,11 @@ Every other security tool for AI coding assistants scans what is already install
 | AgentAuditKit | 77-rule scanner with SARIF output | CI/CD integration, not real-time |
 | Endor Labs | Dependency vetting for AI code | Enterprise SaaS, not open source |
 
-**Our approach:** Real-time interception at the moment the AI agent suggests `pip install` / `npm install`. Three databases checked, decision made, install blocked or allowed — before anything touches your system.
+**Our approach:** 
+Real-time interception at the moment the AI agent suggests `pip install` / `npm install`. 
+Three databases checked, 
+decision made, 
+install blocked or allowed — before anything touches your system.
 
 ## Quick Start
 
@@ -51,7 +67,9 @@ bash install.sh
 
 ### For any AI coding tool
 
-The scanner works standalone. Integrate it into any workflow:
+The scanner works standalone. 
+
+Integrate it into any workflow:
 
 ```bash
 # Check before installing
@@ -92,14 +110,18 @@ This tool provides an auditable record of every package check (JSON output on st
 
 This repo includes two security agent definitions:
 
-**Red Team** (`agents/security-red-team.md`) — Offensive. Probes your code for:
+**Red Team** (`agents/security-red-team.md`) — Offensive. 
+
+Probes your code for:
 - OWASP Top 10 vulnerabilities
 - Supply chain risks (unpinned deps, typosquatting)
 - Secrets in code and git history (via gitleaks)
 - Prompt injection in AI tool configs
 - Insecure file permissions
 
-**Blue Team** (`agents/security-blue-team.md`) — Defensive. Validates that:
+**Blue Team** (`agents/security-blue-team.md`) — Defensive. 
+
+Validates that:
 - All security hooks are installed and wired
 - Gitignore covers sensitive files
 - Credential files have proper permissions (600)
@@ -112,6 +134,7 @@ Copy them to `.claude/agents/` (or equivalent) and invoke for on-demand security
 ## Prerequisites
 
 - **gitleaks** (required for `gitleaks-pre-write.sh`): `brew install gitleaks`
+  (or `brew safe-install gitleaks` if you have [homebrew-safe-upgrade](https://github.com/sharkyger/homebrew-safe-upgrade) installed — gates the install through 3 CVE databases first)
 - **jq** (required for all hooks): usually pre-installed on macOS
 
 ## Related
