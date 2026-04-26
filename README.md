@@ -49,9 +49,7 @@ This one blocks the bad package before it ever reaches your machine.
 
 **Our approach:** 
 Real-time interception at the moment the AI agent suggests `pip install` / `npm install`. 
-Three databases checked, 
-decision made, 
-install blocked or allowed — before anything touches your system.
+Three databases checked, decision made, install blocked or allowed — before anything touches your system.
 
 ## Quick Start
 
