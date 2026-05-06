@@ -55,9 +55,9 @@ Three databases checked, decision made, install blocked or allowed — before an
 
 ## Quick Start
 
-### For Mistral with Claude Code / Codestral
+### For Mistral Codestral / Le Chat
 
-If you use Mistral models through Claude Code, Codestral, or any tool with hook support:
+If you use Mistral models through Codestral, Le Chat, or any tool with hook support:
 
 ```bash
 git clone https://github.com/sharkyger/mistral-code-security.git
@@ -104,7 +104,7 @@ If you are in a regulated industry (finance, healthcare, government), unvetted d
 - **DORA** (Digital Operational Resilience Act) mandates ICT risk management for financial entities
 - **GDPR** Article 32 requires appropriate technical measures, including secure development practices
 
-This tool provides an auditable record of every package check (JSON output on stdout, plus a per-decision audit trail at `~/.claude/dependency-gate.log.jsonl`). Transitive dependencies are resolved and checked alongside the top-level package, so the audit covers your full install surface.
+This tool provides an auditable record of every package check (JSON output on stdout). Transitive dependencies are resolved and checked alongside the top-level package, so the audit covers your full install surface.
 
 ## Red Team / Blue Team Agents
 
