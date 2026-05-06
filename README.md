@@ -24,12 +24,14 @@ This closes that gap.
 When your AI coding tool tries to install a package, this system:
 
 1. **Intercepts** the install command (pip, npm, composer, cargo, go, gem, brew)
-2. **Queries 3 databases** for known vulnerabilities:
+2. **Resolves the full transitive tree** for pip / npm / composer / gem via the package manager's own dry-run mode — every direct and indirect dependency gets checked, not just the named package. Use `--no-deps` to limit the check to the top-level package
+3. **Queries 3 databases** for known vulnerabilities:
    - [NIST NVD](https://nvd.nist.gov/) - US government vulnerability database
-   - [OSV.dev](https://osv.dev/) - Google open source vulnerability database
+   - [OSV.dev](https://osv.dev/) - Google open source vulnerability database, batch-queried for the resolved tree
    - [GitHub Advisory Database](https://github.com/advisories) - GitHub security advisories
-3. **Blocks** the install if vulnerabilities are found
-4. **Allows** it through if clean
+4. **Holds fresh versions** (default `--min-age 3`) for pip + npm — if a package's latest release is younger than N days, the install is held. Defends against typosquat / zero-hour publish attacks where a malicious version goes live minutes after credential theft, before any CVE database knows. Disable with `--min-age 0`
+5. **Fails closed on demand** — set `STRICT_FAIL_CLOSED=1` to turn database errors into hard blocks (default is best-effort allow when at least one DB returns clean)
+6. **Blocks** the install if vulnerabilities are found, **allows** it through if clean
 
 No API keys required. 
 All three databases are free and public. 
@@ -53,9 +55,9 @@ Three databases checked, decision made, install blocked or allowed — before an
 
 ## Quick Start
 
-### For Mistral with Claude Code / Codestral
+### For Mistral Codestral / Le Chat
 
-If you use Mistral models through Claude Code, Codestral, or any tool with hook support:
+If you use Mistral models through Codestral, Le Chat, or any tool with hook support:
 
 ```bash
 git clone https://github.com/sharkyger/mistral-code-security.git
@@ -102,7 +104,7 @@ If you are in a regulated industry (finance, healthcare, government), unvetted d
 - **DORA** (Digital Operational Resilience Act) mandates ICT risk management for financial entities
 - **GDPR** Article 32 requires appropriate technical measures, including secure development practices
 
-This tool provides an auditable record of every package check (JSON output on stdout).
+This tool provides an auditable record of every package check (JSON output on stdout). Transitive dependencies are resolved and checked alongside the top-level package, so the audit covers your full install surface.
 
 ## Red Team / Blue Team Agents
 
