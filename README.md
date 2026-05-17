@@ -203,6 +203,15 @@ Copy them to `.claude/agents/` (or equivalent) and invoke for on-demand security
 - [claude-code-cve-gate](https://github.com/sharkyger/claude-code-cve-gate) - Same protection optimized for Anthropic Claude Code
 - [homebrew-safe-upgrade](https://github.com/sharkyger/homebrew-safe-upgrade) - Same scanner integrated into Homebrew upgrades
 
+## Sponsors
+
+This tool stays free and default-on thanks to the people and companies funding the maintenance time.
+
+<!-- sponsors -->
+<!-- sponsors -->
+
+[**Become a sponsor →**](https://github.com/sponsors/sharkyger)
+
 ## License
 
 MIT
