@@ -1,15 +1,15 @@
 #!/bin/bash
-# Claude Code Security — Installer
+# Mistral Code CVE Gate — Installer
 # Downloads security hooks and vulnerability scanner into ~/.claude/
 
 set -euo pipefail
 
 INSTALL_DIR="$HOME/.claude"
 HOOKS_DIR="$INSTALL_DIR/hooks"
-REPO_URL="https://raw.githubusercontent.com/sharkyger/mistral-code-security/main"
+REPO_URL="https://raw.githubusercontent.com/sharkyger/mistral-code-cve-gate/main"
 
 echo ""
-echo "  Claude Code Security — Installing safety hooks"
+echo "  Mistral Code CVE Gate — Installing safety hooks"
 echo "  ================================================"
 echo ""
 
