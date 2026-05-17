@@ -39,15 +39,17 @@ Zero dependencies (Python stdlib only).
 
 ## How This Compares
 
-Every other security tool for AI coding assistants scans what is already installed. 
+Every other security tool for Mistral-powered coding assistants scans what is already installed.
 This one blocks the bad package before it ever reaches your machine.
 
 | Tool | What it does | Gap |
 |------|-------------|-----|
-| mcp-scan (Stytch) | Audits installed MCP server configs | Post-install audit only |
+| mcp-scan (Invariant Labs) | Audits installed MCP server configs | Post-install audit only |
 | AgentSeal | Scans MCP configs for prompt injection | Config audit, not install blocking |
 | AgentAuditKit | 77-rule scanner with SARIF output | CI/CD integration, not real-time |
 | Endor Labs | Dependency vetting for AI code | Enterprise SaaS, not open source |
+
+**Adjacent tool (different ecosystem):** [attach-guard](https://github.com/attach-dev/attach-guard) implements the same pre-install gate pattern for Anthropic Claude Code via its PreToolUse hook. It requires a Socket.dev API key and covers npm/pip/go/cargo. For Mistral-flavored coding tools, this is the first OSS pre-install gate.
 
 **Our approach:** 
 Real-time interception at the moment the AI agent suggests `pip install` / `npm install`. 
