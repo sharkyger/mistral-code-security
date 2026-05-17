@@ -207,8 +207,7 @@ Copy them to `.claude/agents/` (or equivalent) and invoke for on-demand security
 
 This tool stays free and default-on thanks to the people and companies funding the maintenance time.
 
-<!-- sponsors -->
-<!-- sponsors -->
+<!-- sponsors -->No sponsors yet — [become the first](https://github.com/sponsors/sharkyger).<!-- sponsors -->
 
 [**Become a sponsor →**](https://github.com/sponsors/sharkyger)
 
