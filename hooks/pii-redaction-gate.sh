@@ -13,23 +13,20 @@ WHITELIST=(
   # Add your own email addresses here
   # "your-email@example.com"
 )
-# Strip whitelisted emails before scanning
+# Strip whitelisted emails before scanning.
+# Guard against empty array under set -u — on Bash 3.2 (macOS default),
+# "${arr[@]}" on an empty array raises unbound variable.
 SANITIZED="$PROMPT"
-for addr in "${WHITELIST[@]}"; do
+for addr in ${WHITELIST[@]+"${WHITELIST[@]}"}; do
   SANITIZED="${SANITIZED//$addr/WHITELISTED}"
 done
 FINDINGS=""
-# Email addresses (after whitelist removal)
-if echo "$SANITIZED" | grep -qE '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'; then
-  # Skip @example.com (test data)
-  if echo "$SANITIZED" | grep -qE '[a-zA-Z0-9._%+-]+@(?!example\.com)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' 2>/dev/null || \
-     echo "$SANITIZED" | grep -vq '@example.com' 2>/dev/null; then
-    # Double-check it's not just example.com
-    REMAINING=$(echo "$SANITIZED" | grep -oE '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' | grep -v '@example\.com' | grep -v 'WHITELISTED' || true)
-    if [[ -n "$REMAINING" ]]; then
-      FINDINGS="${FINDINGS}Email address detected. "
-    fi
-  fi
+# Email addresses (after whitelist removal, ignoring @example.com test data).
+# POSIX ERE doesn't support Perl lookahead, so we extract candidates and
+# filter the @example.com / WHITELISTED ones out explicitly.
+REMAINING=$(echo "$SANITIZED" | grep -oE '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' | grep -v '@example\.com' | grep -v 'WHITELISTED' || true)
+if [[ -n "$REMAINING" ]]; then
+  FINDINGS="${FINDINGS}Email address detected. "
 fi
 # Credit card numbers (13-19 digits with optional separators)
 if echo "$PROMPT" | grep -qE '\b[0-9]{4}[-[:space:]]?[0-9]{4}[-[:space:]]?[0-9]{4}[-[:space:]]?[0-9]{1,7}\b'; then

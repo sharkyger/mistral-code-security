@@ -105,7 +105,7 @@ def get_release_age_days(package_name, version, ecosystem):
         if not iso:
             return None
         dt = datetime.datetime.fromisoformat(iso.replace("Z", "+00:00"))
-        return (datetime.datetime.now(datetime.UTC) - dt).days
+        return (datetime.datetime.now(datetime.timezone.utc) - dt).days
     except (urllib.error.URLError, json.JSONDecodeError, TimeoutError, ValueError):
         return None
 

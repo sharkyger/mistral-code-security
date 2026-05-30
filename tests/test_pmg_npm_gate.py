@@ -41,6 +41,24 @@ def test_run_npm_via_pmg_invokes_pmg_subprocess(monkeypatch):
     assert rc == 0
     assert captured["args"] == ["pmg", "npm", "install", "express"]
     assert captured["kwargs"].get("check") is False
+    assert captured["kwargs"].get("timeout") == pmg_npm_gate.DEFAULT_PMG_TIMEOUT_SECONDS
+
+
+def test_run_npm_via_pmg_honours_custom_timeout(monkeypatch):
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/local/bin/pmg")
+    captured: dict = {}
+
+    def fake_run(args, **kwargs):
+        captured["kwargs"] = kwargs
+
+        class R:
+            returncode = 0
+
+        return R()
+
+    monkeypatch.setattr(pmg_npm_gate.subprocess, "run", fake_run)
+    run_npm_via_pmg(["install", "express"], timeout=42)
+    assert captured["kwargs"].get("timeout") == 42
 
 
 def test_run_npm_via_pmg_propagates_nonzero_exit_code(monkeypatch):

@@ -27,20 +27,30 @@ PMG_INSTALL_HINT = (
     "Docs: https://github.com/safedep/pmg"
 )
 
+# 5 minutes — generous for slow registries, finite enough to prevent
+# indefinite hangs in CI. Surface as TimeoutExpired so callers can decide
+# whether to retry or fail the install outright.
+DEFAULT_PMG_TIMEOUT_SECONDS = 300
+
 
 def is_pmg_available() -> bool:
     """Return True iff `pmg` is on PATH."""
     return shutil.which("pmg") is not None
 
 
-def run_npm_via_pmg(npm_args: Sequence[str]) -> int:
+def run_npm_via_pmg(
+    npm_args: Sequence[str],
+    timeout: float = DEFAULT_PMG_TIMEOUT_SECONDS,
+) -> int:
     """Forward ``npm <args>`` through ``pmg npm <args>``.
 
     Fails closed with :class:`RuntimeError` if PMG is missing. Returns
-    the subprocess exit code on success.
+    the subprocess exit code on success. Raises
+    :class:`subprocess.TimeoutExpired` if PMG/npm exceeds ``timeout``
+    seconds (default: 300).
     """
     if not is_pmg_available():
         raise RuntimeError(PMG_INSTALL_HINT)
     return subprocess.run(
-        ["pmg", "npm", *npm_args], check=False
+        ["pmg", "npm", *npm_args], check=False, timeout=timeout
     ).returncode
