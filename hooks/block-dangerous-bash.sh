@@ -10,6 +10,7 @@ INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # Block rm -rf on broad/root paths
+# shellcheck disable=SC2016  # single-quoted grep pattern is intentional (no shell expansion)
 if echo "$COMMAND" | grep -qE 'rm\s+-rf\s+(/|~|\$HOME|\.\.|/Users)'; then
   echo "BLOCKED: rm -rf on broad paths is too dangerous." >&2
   exit 2
@@ -28,6 +29,7 @@ if echo "$COMMAND" | grep -qE '(cat|head|tail|less|more|bat)\s+.*\.env(\s|$)'; t
 fi
 
 # Block printing secret env vars
+# shellcheck disable=SC2016  # single-quoted grep pattern is intentional (no shell expansion)
 if echo "$COMMAND" | grep -qE '(echo|printf|printenv)\s+.*\$(API_KEY|SECRET_KEY|PASSWORD|PRIVATE_KEY|AWS_SECRET|ANTHROPIC_API_KEY|MISTRAL_API_KEY)'; then
   echo "BLOCKED: Cannot print secret environment variables." >&2
   exit 2
