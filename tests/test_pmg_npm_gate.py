@@ -1,9 +1,9 @@
 """Tests for PMG-backed npm gating."""
+
 import shutil
 
-import pytest
-
 import pmg_npm_gate
+import pytest
 from pmg_npm_gate import is_pmg_available, run_npm_via_pmg
 
 
@@ -39,7 +39,8 @@ def test_run_npm_via_pmg_invokes_pmg_subprocess(monkeypatch):
     monkeypatch.setattr(pmg_npm_gate.subprocess, "run", fake_run)
     rc = run_npm_via_pmg(["install", "express"])
     assert rc == 0
-    assert captured["args"] == ["pmg", "npm", "install", "express"]
+    # Execs the resolved ABSOLUTE path (not bare "pmg") — closes the PATH/TOCTOU window.
+    assert captured["args"] == ["/usr/local/bin/pmg", "npm", "install", "express"]
     assert captured["kwargs"].get("check") is False
     assert captured["kwargs"].get("timeout") == pmg_npm_gate.DEFAULT_PMG_TIMEOUT_SECONDS
 

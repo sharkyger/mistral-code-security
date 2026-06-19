@@ -15,11 +15,12 @@ This module has no CLI entry-point yet — the cve-gate hook surface is
 shell-hook driven (see ``hooks/dependency-security-gate.sh``). Wiring
 will land in Phase 2 once the CLI router exists. Stdlib only.
 """
+
 from __future__ import annotations
 
 import shutil
 import subprocess
-from typing import Sequence
+from collections.abc import Sequence
 
 PMG_INSTALL_HINT = (
     "PMG (Package Manager Guard) is required for npm gating.\n"
@@ -48,9 +49,13 @@ def run_npm_via_pmg(
     the subprocess exit code on success. Raises
     :class:`subprocess.TimeoutExpired` if PMG/npm exceeds ``timeout``
     seconds (default: 300).
+
+    Resolves ``pmg`` to its absolute path once and execs that exact path,
+    closing the check-then-run PATH-hijack / TOCTOU window (a separate
+    ``which`` check followed by a bare-name exec could resolve a different
+    binary).
     """
-    if not is_pmg_available():
+    pmg_path = shutil.which("pmg")
+    if pmg_path is None:
         raise RuntimeError(PMG_INSTALL_HINT)
-    return subprocess.run(
-        ["pmg", "npm", *npm_args], check=False, timeout=timeout
-    ).returncode
+    return subprocess.run([pmg_path, "npm", *npm_args], check=False, timeout=timeout).returncode

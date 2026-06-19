@@ -23,8 +23,10 @@ done
 FINDINGS=""
 # Email addresses (after whitelist removal, ignoring @example.com test data).
 # POSIX ERE doesn't support Perl lookahead, so we extract candidates and
-# filter the @example.com / WHITELISTED ones out explicitly.
-REMAINING=$(echo "$SANITIZED" | grep -oE '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' | grep -v '@example\.com' | grep -v 'WHITELISTED' || true)
+# filter the @example.com / WHITELISTED ones out explicitly. The @example.com
+# exclusion is anchored ($) so a real address like alice@example.com.evil is
+# NOT treated as test data and still gets flagged.
+REMAINING=$(echo "$SANITIZED" | grep -oE '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' | grep -viE '@example\.com$' | grep -v 'WHITELISTED' || true)
 if [[ -n "$REMAINING" ]]; then
   FINDINGS="${FINDINGS}Email address detected. "
 fi

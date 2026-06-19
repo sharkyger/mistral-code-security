@@ -37,9 +37,9 @@ TMPDIR_SCAN="$(mktemp -d)"
 BASENAME="$(basename "${FILE_PATH:-content.txt}")"
 [ -z "$BASENAME" ] && BASENAME="content.txt"
 TMPFILE="${TMPDIR_SCAN}/${BASENAME}"
-# printf '%s\n' is byte-faithful; echo consumes -n/-e and interprets backslashes,
-# which would silently corrupt the scanned payload.
-printf '%s\n' "$CONTENT" > "$TMPFILE"
+# printf '%s' is byte-faithful (no added trailing newline); echo consumes -n/-e
+# and interprets backslashes, which would silently corrupt the scanned payload.
+printf '%s' "$CONTENT" > "$TMPFILE"
 
 # Scan the temp file — capture exit code without triggering set -e
 if gitleaks detect --no-git --source "$TMPDIR_SCAN" --no-banner >/dev/null 2>&1; then
