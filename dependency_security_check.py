@@ -16,7 +16,9 @@ Fresh-version hold (default-on for pip + npm, --min-age N):
   Holds packages whose latest release is younger than N days. Defends against
   typosquatting and zero-hour publish attacks where a malicious version is
   published minutes after credential theft, before any CVE database knows.
-  Use --min-age 0 to disable.
+  Use --min-age 0 to disable. An age that cannot be verified (registry
+  timestamp missing or lookup failed) is HELD fail-closed — override with
+  --allow-unknown-age.
 
 Fail-closed posture (env var STRICT_FAIL_CLOSED=1):
   Default behaviour: CVE database lookups are best-effort. If OSV times out
@@ -77,9 +79,9 @@ def get_release_age_days(package_name, version, ecosystem):
 
     Returns None if the lookup failed, the ecosystem isn't supported, or the
     registry doesn't expose a timestamp for this package/version. The caller
-    must NOT interpret None as "old enough to install" — its policy on
-    unknown-age packages is decided separately (we treat it as a warning,
-    not a block).
+    must NOT interpret None as "old enough to install": for pip/npm,
+    ``check_min_age`` treats an unverifiable age as a HOLD (fail closed),
+    not a warning.
     """
     try:
         if ecosystem == "pip":
@@ -110,22 +112,41 @@ def get_release_age_days(package_name, version, ecosystem):
         return None
 
 
-def check_min_age(package_name, version, ecosystem, min_age_days):
-    """Return a hold dict if the package is too fresh; None otherwise.
+def check_min_age(package_name, version, ecosystem, min_age_days, allow_unknown_age=False):
+    """Return a hold dict if the package is too fresh OR its age is unverifiable.
 
     Only applies to pip + npm (the ecosystems we resolve transitively and where
     the registry exposes per-version publish timestamps). For other ecosystems
-    or when min_age_days <= 0, returns None.
+    or when min_age_days <= 0, returns None (the freshness gate does not apply).
 
-    If the registry lookup fails (network error, missing timestamp), we treat
-    the age as unknown and return None — the caller logs a soft warning rather
-    than blocking. Failing closed on every transient PyPI/npm hiccup would be
-    too disruptive; the CVE checks remain authoritative.
+    FAIL CLOSED on unverifiable age. Once we are past the ecosystem guard,
+    ``get_release_age_days`` returning None means we could NOT determine the age
+    (network error, registry omitted the timestamp, unparseable date) — never
+    "old enough". The freshness hold exists precisely to catch a version too new
+    for the CVE databases to know about; waving through a package whose age we
+    cannot verify defeats the defense at the exact moment it matters. So an
+    unknown age is HELD, with the explicit ``allow_unknown_age`` opt-out
+    (surfaced as ``--allow-unknown-age``). See the fleet fail-closed rule.
+
+    Returns a hold dict with ``reason`` of "too_fresh" (age known, below the
+    threshold) or "unknown_age" (age unverifiable). ``age_days`` is the integer
+    age for "too_fresh" and None for "unknown_age".
     """
     if min_age_days <= 0 or ecosystem not in ("pip", "npm"):
         return None
     age = get_release_age_days(package_name, version, ecosystem)
-    if age is None or age >= min_age_days:
+    if age is None:
+        if allow_unknown_age:
+            return None
+        return {
+            "package": package_name,
+            "version": version,
+            "ecosystem": ecosystem,
+            "age_days": None,
+            "min_age_days": min_age_days,
+            "reason": "unknown_age",
+        }
+    if age >= min_age_days:
         return None
     return {
         "package": package_name,
@@ -133,7 +154,25 @@ def check_min_age(package_name, version, ecosystem, min_age_days):
         "ecosystem": ecosystem,
         "age_days": age,
         "min_age_days": min_age_days,
+        "reason": "too_fresh",
     }
+
+
+def _format_fresh_hold(fresh):
+    """Human-readable one-line reason for a freshness hold dict from check_min_age."""
+    pkg = f"{fresh['package']}=={fresh['version']}"
+    if fresh.get("reason") == "unknown_age":
+        return (
+            f"Fresh-version hold: {pkg} age could not be verified "
+            f"(registry timestamp missing or lookup failed). Held fail-closed — "
+            f"a version too new to date-check may be too new for the CVE DBs. "
+            f"Re-run with --allow-unknown-age to override, or --min-age 0 to disable."
+        )
+    return (
+        f"Fresh-version hold: {pkg} is {fresh['age_days']}d old "
+        f"(< --min-age {fresh['min_age_days']}d). Defends against zero-hour "
+        f"publish attacks. Re-run with --min-age 0 if you need this version now."
+    )
 
 
 # Map ecosystem names to each source's expected format
@@ -929,7 +968,7 @@ def _print_findings(top_pkg, findings_by_pkg, errors, sources_checked):
     return total_vulns, total_critical_high
 
 
-def _check_with_deps(ecosystem, package_name, version, min_age_days=0):
+def _check_with_deps(ecosystem, package_name, version, min_age_days=0, allow_unknown_age=False):
     """Transitive-checking path for pip + npm. Returns (status, details_dict).
 
     status: "clean" | "vulnerable" | "fresh"
@@ -968,16 +1007,10 @@ def _check_with_deps(ecosystem, package_name, version, min_age_days=0):
     )
 
     fresh_packages = []
-    fresh = check_min_age(resolved_name, resolved_version, ecosystem, min_age_days)
+    fresh = check_min_age(resolved_name, resolved_version, ecosystem, min_age_days, allow_unknown_age)
     if fresh:
         fresh_packages.append(fresh)
-        print(
-            f"  Fresh-version hold: {resolved_name}=={resolved_version} is "
-            f"{fresh['age_days']}d old (< --min-age {min_age_days}d). "
-            f"Defends against zero-hour publish attacks. "
-            f"Re-run with --min-age 0 if you need this version now.",
-            file=sys.stderr,
-        )
+        print("  " + _format_fresh_hold(fresh), file=sys.stderr)
 
     print(
         "  Querying vulnerability databases...",
@@ -1071,7 +1104,7 @@ def _check_with_deps(ecosystem, package_name, version, min_age_days=0):
     }
 
 
-def _check_single(ecosystem, package_name, version, min_age_days=0):
+def _check_single(ecosystem, package_name, version, min_age_days=0, allow_unknown_age=False):
     """Legacy single-package path. Returns (status, details_dict)."""
     print(
         "  Querying 3 vulnerability databases (NVD + OSV + GitHub)...\n",
@@ -1083,16 +1116,10 @@ def _check_single(ecosystem, package_name, version, min_age_days=0):
     # nothing concrete to date-check. Caller in main() resolves the latest
     # version before dispatching, so this branch is rare in practice.
     if version:
-        fresh = check_min_age(package_name, version, ecosystem, min_age_days)
+        fresh = check_min_age(package_name, version, ecosystem, min_age_days, allow_unknown_age)
         if fresh:
             fresh_packages.append(fresh)
-            print(
-                f"  Fresh-version hold: {package_name}=={version} is "
-                f"{fresh['age_days']}d old (< --min-age {min_age_days}d). "
-                f"Defends against zero-hour publish attacks. "
-                f"Re-run with --min-age 0 if you need this version now.\n",
-                file=sys.stderr,
-            )
+            print("  " + _format_fresh_hold(fresh) + "\n", file=sys.stderr)
 
     all_findings = []
     all_findings.extend(query_osv(package_name, ecosystem, version))
@@ -1198,6 +1225,15 @@ def main():
             f"Use --min-age 0 to disable."
         ),
     )
+    parser.add_argument(
+        "--allow-unknown-age",
+        action="store_true",
+        help=(
+            "Permit pip/npm packages whose release age cannot be verified "
+            "(registry timestamp missing or lookup failed). Default: held "
+            "(fail closed) — an unverifiable age is treated as a freshness hold."
+        ),
+    )
     args = parser.parse_args()
 
     ecosystem = args.ecosystem.lower()
@@ -1239,7 +1275,7 @@ def main():
 
     if can_check_deps:
         try:
-            status, output = _check_with_deps(ecosystem, package_name, version, args.min_age)
+            status, output = _check_with_deps(ecosystem, package_name, version, args.min_age, args.allow_unknown_age)
         except RuntimeError as e:
             print(
                 f"\n  BLOCKED: transitive dependency resolution failed.\n"
@@ -1249,7 +1285,7 @@ def main():
             )
             sys.exit(2)
     else:
-        status, output = _check_single(ecosystem, package_name, version, args.min_age)
+        status, output = _check_single(ecosystem, package_name, version, args.min_age, args.allow_unknown_age)
 
     # STRICT_FAIL_CLOSED upgrades a clean-with-DB-errors result to a hard block.
     # Normal posture: CVE checks are best-effort; if OSV times out but GHSA + NVD
