@@ -180,6 +180,40 @@ def test_check_min_age_zero_disables():
         assert dsc.check_min_age("foo", "1.0", "pip", min_age_days=0) is None
 
 
+def test_check_min_age_unknown_age_held_fail_closed():
+    """Regression (fail-open bug): an unverifiable age (None from a lookup
+    failure / missing registry timestamp) must be HELD, never waved through.
+    The freshness hold exists for versions too new for the CVE DBs — exactly
+    the case where the timestamp may be unfetchable."""
+    with patch.object(dsc, "get_release_age_days", return_value=None):
+        result = dsc.check_min_age("maybe-evil", "0.0.1", "pip", min_age_days=3)
+    assert result is not None, "unknown age must fail closed (hold), not return None"
+    assert result["reason"] == "unknown_age"
+    assert result["age_days"] is None
+    assert result["package"] == "maybe-evil"
+
+
+def test_check_min_age_unknown_age_allowed_with_opt_out():
+    """The --allow-unknown-age escape hatch lets unverifiable-age packages pass."""
+    with patch.object(dsc, "get_release_age_days", return_value=None):
+        assert dsc.check_min_age("foo", "1.0", "npm", min_age_days=3, allow_unknown_age=True) is None
+
+
+def test_check_min_age_fresh_carries_reason():
+    """Known-but-fresh holds are tagged too_fresh (distinct from unknown_age)."""
+    with patch.object(dsc, "get_release_age_days", return_value=1):
+        result = dsc.check_min_age("evil-typo", "0.0.1", "npm", min_age_days=3)
+    assert result["reason"] == "too_fresh"
+
+
+def test_check_min_age_non_applicable_ecosystem_returns_none():
+    """Non-pip/npm ecosystems are out of scope for the age gate (legit None),
+    and must NOT be confused with a fail-closed hold — get_release_age_days is
+    never even consulted."""
+    with patch.object(dsc, "get_release_age_days", side_effect=AssertionError("must not be called")):
+        assert dsc.check_min_age("symfony/routing", "7.4.4", "composer", min_age_days=3) is None
+
+
 # ─── STRICT_FAIL_CLOSED end-to-end ───────────────────────────────────────────
 
 

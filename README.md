@@ -198,6 +198,36 @@ Copy them to `.claude/agents/` (or equivalent) and invoke for on-demand security
   (or `brew safe-install gitleaks` if you have [homebrew-safe-upgrade](https://github.com/sharkyger/homebrew-safe-upgrade) installed — gates the install through 3 CVE databases first)
 - **jq** (required for all hooks): usually pre-installed on macOS
 
+## External dependency: PMG for npm gating
+
+The 3-database scanner in this repo checks npm packages against NVD,
+OSV.dev, and the GitHub Advisory DB. To add **malware detection** and a
+**configurable cooldown** on top of CVE checks, this repo integrates
+[**PMG** (Package Manager Guard)](https://github.com/safedep/pmg) — an
+Apache 2.0, free-tier-no-API-key wrapper that gates npm operations
+pre-install through SafeDep's threat feed.
+
+**Install PMG:**
+
+```bash
+npm i -g @safedep/pmg
+pmg --version
+```
+
+The helper module `pmg_npm_gate.py` exposes `run_npm_via_pmg(args)`. It
+**fails closed** with a `RuntimeError` and install hint when `pmg` is
+not on PATH — npm gating cannot silently regress to bare `npm install`.
+
+**Scope:** pre-install CVE + malware + configurable cooldown via PMG,
+layered on top of the existing 3-DB CVE scanner in this repo. PMG is
+licensed under Apache 2.0; the threat-feed verdicts are cloud-hosted
+(see the [PMG repo](https://github.com/safedep/pmg) for details).
+
+**Phase 2** (separate PR): wire `~/.vibe/config.toml` so that bare
+`npm install` invocations from mistral-vibe are routed through PMG
+automatically. Until that lands, gating runs only when callers
+explicitly invoke `run_npm_via_pmg` (or future CLI subcommand).
+
 ## Related
 
 - [claude-code-cve-gate](https://github.com/sharkyger/claude-code-cve-gate) - Same protection optimized for Anthropic Claude Code

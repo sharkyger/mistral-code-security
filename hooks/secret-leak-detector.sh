@@ -9,7 +9,6 @@
 set -euo pipefail
 
 INPUT="$(cat)"
-TOOL="$(echo "$INPUT" | jq -r '.tool_name // empty')"
 
 # Get the file path from tool response or input
 FILE_PATH="$(echo "$INPUT" | jq -r '.tool_response.filePath // .tool_input.file_path // empty')"
