@@ -35,6 +35,13 @@ brew install shellcheck
 shellcheck hooks/*.sh install.sh
 ```
 
+The hooks parse stdin JSON with `jq`:
+
+```bash
+brew install jq
+# or `brew safe-install jq` if you have homebrew-safe-upgrade
+```
+
 The `gitleaks-pre-write.sh` hook depends on gitleaks:
 
 ```bash

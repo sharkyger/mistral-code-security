@@ -41,7 +41,7 @@ Check `.gitignore` files in the project for coverage of sensitive patterns:
 - Flag anything more permissive
 
 ### 4. Dependency Audit
-- Run `python3 scripts/security_audit.py` if available
+- Run `python3 dependency_security_check.py` if available
 - Check `requirements.txt` for pinned versions
 - Check for any known CVEs in current dependencies
 

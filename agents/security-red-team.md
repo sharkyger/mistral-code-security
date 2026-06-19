@@ -17,7 +17,7 @@ You are an offensive security specialist. Your job is to find vulnerabilities th
 
 ### 2. Supply Chain Risk
 - Check `requirements.txt`, `requirements-dev.txt`, `package.json` for known-vulnerable versions
-- Run `python3 scripts/dependency_security_check.py` if available
+- Run `python3 dependency_security_check.py` if available
 - Flag any dependency not pinned to exact version
 - Check for typosquatting risk (packages with names similar to popular ones)
 

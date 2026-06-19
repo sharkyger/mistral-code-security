@@ -30,11 +30,16 @@ if ! command -v gitleaks &>/dev/null; then
   exit 0
 fi
 
-# Write content to temp file (preserving original filename for gitleaks rule matching)
+# Write content to temp file (preserving original filename for gitleaks rule matching).
+# Empty file_path → fall back to content.txt so basename never returns "."
+# and the redirect doesn't try to write to the temp directory itself.
 TMPDIR_SCAN="$(mktemp -d)"
-BASENAME="$(basename "$FILE_PATH")"
+BASENAME="$(basename "${FILE_PATH:-content.txt}")"
+[ -z "$BASENAME" ] && BASENAME="content.txt"
 TMPFILE="${TMPDIR_SCAN}/${BASENAME}"
-echo "$CONTENT" > "$TMPFILE"
+# printf '%s\n' is byte-faithful; echo consumes -n/-e and interprets backslashes,
+# which would silently corrupt the scanned payload.
+printf '%s\n' "$CONTENT" > "$TMPFILE"
 
 # Scan the temp file — capture exit code without triggering set -e
 if gitleaks detect --no-git --source "$TMPDIR_SCAN" --no-banner >/dev/null 2>&1; then
