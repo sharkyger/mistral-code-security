@@ -215,7 +215,13 @@ def _resolve_brew_version(package_name):
             ["brew", "info", "--json=v2", package_name],
             capture_output=True,
             text=True,
-            timeout=20,
+            # Homebrew 4.x can refresh its multi-MB JSON API cache from `brew
+            # info`. Suppress that: a timeout returns None, and None is NOT
+            # neutral here — it puts the package back on the "check every CVE
+            # ever" path this function exists to remove, intermittently and with
+            # no diagnostic.
+            env={**os.environ, "HOMEBREW_NO_AUTO_UPDATE": "1"},
+            timeout=30,
             check=False,
         )
     except (OSError, subprocess.SubprocessError):
@@ -230,14 +236,18 @@ def _resolve_brew_version(package_name):
     # caller's broad except, so the helper holds up when called directly.
     if not isinstance(data, dict):
         return None
-    for formula in data.get("formulae", []):
+    for formula in data.get("formulae") or []:
+        if not isinstance(formula, dict):
+            continue
         version = (formula.get("versions") or {}).get("stable")
         if version:
             return version
     # Casks carry their version at the top level rather than under versions{}.
     # Homebrew writes them as `version,build` (e.g. "6.0.2,1234"); only the part
     # before the comma is the marketing version a CVE range talks about.
-    for cask in data.get("casks", []):
+    for cask in data.get("casks") or []:
+        if not isinstance(cask, dict):
+            continue
         if cask.get("version"):
             return cask["version"].split(",", 1)[0]
     return None
