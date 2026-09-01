@@ -101,3 +101,24 @@ def test_resolve_latest_version_routes_brew_and_leaves_others_alone():
     with patch.object(dsc, "_resolve_brew_version") as brew:
         assert dsc.resolve_latest_version("some/pkg", "cargo") is None
         brew.assert_not_called()
+
+def test_a_cask_version_latest_resolves_to_nothing():
+    """`version :latest` is not a version, and returning it is worse than None.
+
+    The tolerant parser maps "latest" to 0, so the CPE range check reads
+    `0 < versionStartIncluding` as "outside the affected range" and drops every
+    CPE-ranged CVE for that package. brew has no OSV or GHSA second opinion to
+    recover them, and before brew resolved at all the CPE block was skipped
+    entirely, so those findings used to be kept.
+    """
+    payload = json.dumps({"formulae": [], "casks": [{"version": "latest"}]})
+    with patch.object(dsc.subprocess, "run", return_value=_completed(payload)):
+        assert dsc._resolve_brew_version("some-cask") is None
+    # A real cask version still resolves, build suffix stripped.
+    payload = json.dumps({"formulae": [], "casks": [{"version": "6.0.2,1234"}]})
+    with patch.object(dsc.subprocess, "run", return_value=_completed(payload)):
+        assert dsc._resolve_brew_version("some-cask") == "6.0.2"
+    # Same rule on the formula path.
+    payload = json.dumps({"formulae": [{"versions": {"stable": "HEAD"}}], "casks": []})
+    with patch.object(dsc.subprocess, "run", return_value=_completed(payload)):
+        assert dsc._resolve_brew_version("weird") is None

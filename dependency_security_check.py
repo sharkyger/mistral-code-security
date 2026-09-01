@@ -200,6 +200,26 @@ ECOSYSTEM_MAP = {
 }
 
 
+def _brew_version_or_none(raw):
+    """Homebrew's answer, or None when it is not a version at all.
+
+    A cask may declare `version :latest`, and `brew info` then reports the
+    literal string "latest". Returning it is worse than returning nothing: the
+    tolerant parser maps it to 0, so the CPE range check reads
+    `0 < versionStartIncluding` as "outside the affected range" and DROPS every
+    CPE-ranged CVE for that package — and brew has no OSV or GHSA second opinion
+    to recover them. Anything that does not start with a digit degrades to None,
+    the same "unknown" path as any other resolution failure.
+
+    Homebrew writes cask versions as `version,build`; only the part before the
+    comma is the marketing version a CVE range talks about.
+    """
+    if not raw:
+        return None
+    candidate = str(raw).strip().split(",", 1)[0]
+    return candidate if re.match(r"^[v=]*\d", candidate) else None
+
+
 def _resolve_brew_version(package_name):
     """Resolve a Homebrew formula's stable version via the local brew client.
 
@@ -241,15 +261,13 @@ def _resolve_brew_version(package_name):
             continue
         version = (formula.get("versions") or {}).get("stable")
         if version:
-            return version
+            return _brew_version_or_none(version)
     # Casks carry their version at the top level rather than under versions{}.
-    # Homebrew writes them as `version,build` (e.g. "6.0.2,1234"); only the part
-    # before the comma is the marketing version a CVE range talks about.
     for cask in data.get("casks") or []:
         if not isinstance(cask, dict):
             continue
         if cask.get("version"):
-            return cask["version"].split(",", 1)[0]
+            return _brew_version_or_none(cask["version"])
     return None
 
 
