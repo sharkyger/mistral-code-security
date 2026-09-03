@@ -232,7 +232,7 @@ def _resolve_brew_version(package_name):
     """
     try:
         result = subprocess.run(  # noqa: S603, S607 — args list, no shell, system brew is trusted
-            ["brew", "info", "--json=v2", package_name],
+            ["brew", "info", "--json=v2", "--", package_name],
             capture_output=True,
             text=True,
             # Homebrew 4.x can refresh its multi-MB JSON API cache from `brew
