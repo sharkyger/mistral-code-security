@@ -60,6 +60,17 @@ Mirrors `claude-code-cve-gate`'s architecture — PreToolUse Bash hook + Python 
 
 Current state: **no tags yet** → tag as **v0.1.0** (pre-stable) on the next release per [[feedback_oss_versioning_rule]]. Promotion to v1.0.0 gated on the quality floor (static-analysis + scanner sync + `.coderabbit.yaml`).
 
+## Verdict semantics
+
+**Verdict semantics** — what `AFFECTED` / `CLEAN` / `UNRESOLVED` mean, which
+evidence may clear a finding (never description prose), when blocking is
+actionable, and the block-on-what-an-upgrade-adds rule — are specified once for
+the whole scanner family in
+[`homebrew-safe-upgrade/docs/PRD.md` § Verdict semantics](https://github.com/sharkyger/homebrew-safe-upgrade/blob/main/docs/PRD.md#verdict-semantics).
+`dependency_security_check.py` is forked across these repos, so the contract is
+shared even where the implementations differ; deviations belong in that document,
+not in a fork.
+
 ## Change log for this document
 
 | Date | Author | Change |
