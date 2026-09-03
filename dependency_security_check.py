@@ -200,8 +200,85 @@ ECOSYSTEM_MAP = {
 }
 
 
+def _brew_version_or_none(raw):
+    """Homebrew's answer, or None when it is not a version at all.
+
+    A cask may declare `version :latest`, and `brew info` then reports the
+    literal string "latest". Returning it is worse than returning nothing: the
+    tolerant parser maps it to 0, so the CPE range check reads
+    `0 < versionStartIncluding` as "outside the affected range" and DROPS every
+    CPE-ranged CVE for that package — and brew has no OSV or GHSA second opinion
+    to recover them. Anything that does not start with a digit degrades to None,
+    the same "unknown" path as any other resolution failure.
+
+    Homebrew writes cask versions as `version,build`; only the part before the
+    comma is the marketing version a CVE range talks about.
+    """
+    if not raw:
+        return None
+    candidate = str(raw).strip().split(",", 1)[0]
+    return candidate if re.match(r"^[v=]*\d", candidate) else None
+
+
+def _resolve_brew_version(package_name):
+    """Resolve a Homebrew formula's stable version via the local brew client.
+
+    Homebrew has no version endpoint to query the way PyPI and npm are queried,
+    but the installed client already knows: `brew info --json=v2` reports the
+    stable version that `brew install` would actually fetch.
+
+    The formula name is passed as a separate argv element and never through a
+    shell, so a crafted name cannot become a command.
+    """
+    try:
+        result = subprocess.run(  # noqa: S603, S607 — args list, no shell, system brew is trusted
+            ["brew", "info", "--json=v2", "--", package_name],
+            capture_output=True,
+            text=True,
+            # Homebrew 4.x can refresh its multi-MB JSON API cache from `brew
+            # info`. Suppress that: a timeout returns None, and None is NOT
+            # neutral here — it puts the package back on the "check every CVE
+            # ever" path this function exists to remove, intermittently and with
+            # no diagnostic.
+            env={**os.environ, "HOMEBREW_NO_AUTO_UPDATE": "1"},
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+    # `--json=v1` emits a top-level LIST. Guard here rather than leaning on the
+    # caller's broad except, so the helper holds up when called directly.
+    if not isinstance(data, dict):
+        return None
+    for formula in data.get("formulae") or []:
+        if not isinstance(formula, dict):
+            continue
+        version = (formula.get("versions") or {}).get("stable")
+        if version:
+            return _brew_version_or_none(version)
+    # Casks carry their version at the top level rather than under versions{}.
+    for cask in data.get("casks") or []:
+        if not isinstance(cask, dict):
+            continue
+        if cask.get("version"):
+            return _brew_version_or_none(cask["version"])
+    return None
+
+
 def resolve_latest_version(package_name, ecosystem):
-    """Resolve the latest version of a package from its registry."""
+    """Resolve the latest version of a package from its registry.
+
+    Returning None is not neutral: the caller then checks the package against
+    its ENTIRE CVE history, so anything that ever had an advisory is reported
+    vulnerable — including at the very version that fixed it. Every ecosystem
+    the gate accepts should therefore be resolvable here.
+    """
     try:
         if ecosystem == "pip":
             url = f"https://pypi.org/pypi/{urllib.parse.quote(package_name)}/json"
@@ -215,6 +292,8 @@ def resolve_latest_version(package_name, ecosystem):
             with _urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read())
             return data.get("version")
+        elif ecosystem == "brew":
+            return _resolve_brew_version(package_name)
     except Exception:
         return None
 
